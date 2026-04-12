@@ -5,7 +5,7 @@ import os
 import re
 import sys
 
-TEMPLATES_DIR = "data/templates"
+TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "templates")
 
 EXPECTED_TEMPLATES = [
     "nda.md",
@@ -24,13 +24,16 @@ EXPECTED_TEMPLATES = [
 ]
 
 PLACEHOLDER_RE = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
-MALFORMED_RE = re.compile(r"\{\{[^}]*[a-z][^}]*\}\}|\{[^{][A-Z_]+[^}]\}")
+MALFORMED_RE = re.compile(r"\{\{[^}]*[a-z][^}]*\}\}|(?<!\{)\{[A-Z][A-Z0-9_]*\}(?!\})")
 
 
 def validate_template(filepath):
     errors = []
-    with open(filepath) as f:
-        content = f.read()
+    try:
+        with open(filepath) as f:
+            content = f.read()
+    except OSError as e:
+        return [f"Could not read file: {e}"], []
 
     if not re.search(r"^#\s+", content, re.MULTILINE):
         errors.append("No top-level heading found (expected '# Title')")
@@ -43,7 +46,7 @@ def validate_template(filepath):
     if malformed:
         errors.append(f"Malformed placeholders: {malformed}")
 
-    return errors
+    return errors, placeholders
 
 
 def main():
@@ -56,14 +59,13 @@ def main():
             failed = True
             continue
 
-        errors = validate_template(path)
+        errors, placeholders = validate_template(path)
         if errors:
             print(f"INVALID: {path}")
             for e in errors:
                 print(f"  - {e}")
             failed = True
         else:
-            placeholders = PLACEHOLDER_RE.findall(open(path).read())
             print(f"OK: {path} ({len(placeholders)} placeholders)")
 
     if failed:
