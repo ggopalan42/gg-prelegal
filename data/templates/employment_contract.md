@@ -32,7 +32,7 @@ All inventions, developments, and work product created by Employee in the course
 
 ## 8. Non-Compete
 
-During employment and for {{NON_COMPETE_PERIOD_MONTHS}} months after termination, Employee shall not engage in any business that directly competes with Employer within {{GEOGRAPHIC_SCOPE}}.
+During employment and for {{NON_COMPETE_PERIOD_MONTHS}} months after termination, Employee shall not engage in any business that directly competes with Employer within {{RESTRICTED_GEOGRAPHIC_AREA}}.
 
 ## 9. Governing Law
 

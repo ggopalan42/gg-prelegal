@@ -20,7 +20,7 @@ The restrictions in Section 2 shall apply during Individual's engagement with Co
 
 ## 4. Geographic Scope
 
-The restrictions in Section 2 shall apply within the following geographic area: {{GEOGRAPHIC_SCOPE}}.
+The restrictions in Section 2 shall apply within the following geographic area: {{RESTRICTED_GEOGRAPHIC_AREA}}.
 
 ## 5. Non-Solicitation of Employees
 

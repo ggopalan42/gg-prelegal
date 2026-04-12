@@ -8,7 +8,7 @@ Vendor agrees to provide the following goods and/or services to Buyer: {{GOODS_S
 
 ## 2. Purchase Price and Payment
 
-Buyer shall pay Vendor {{CONTRACT_VALUE}} as follows: {{PAYMENT_TERMS}}. All payments are due within {{PAYMENT_DUE_DAYS}} days of invoice. Late payments shall accrue interest at {{LATE_PAYMENT_INTEREST_RATE}}% per month.
+Buyer shall pay Vendor {{CONTRACT_VALUE}} as follows: {{PAYMENT_SCHEDULE_DESCRIPTION}}. All payments are due within {{PAYMENT_DUE_DAYS}} days of invoice. Late payments shall accrue interest at {{LATE_PAYMENT_INTEREST_RATE}}% per month.
 
 ## 3. Delivery and Acceptance
 
