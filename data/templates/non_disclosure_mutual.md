@@ -4,7 +4,7 @@ This Mutual Non-Disclosure Agreement (the "Agreement") is entered into as of {{E
 
 ## 1. Purpose
 
-The Parties intend to explore a potential business relationship involving {{PURPOSE}} (the "Permitted Purpose") and may disclose confidential information to each other in furtherance of that purpose.
+The Parties intend to explore a potential business relationship involving {{CONFIDENTIAL_INFORMATION_PURPOSE}} (the "Permitted Purpose") and may disclose confidential information to each other in furtherance of that purpose.
 
 ## 2. Definition of Confidential Information
 
@@ -31,7 +31,7 @@ Obligations under this Agreement do not apply to information that:
 
 ## 5. Term
 
-This Agreement shall remain in effect for {{TERM_YEARS}} years from the Effective Date. Confidentiality obligations survive termination with respect to information disclosed during the term.
+This Agreement shall remain in effect for {{AGREEMENT_TERM_YEARS}} years from the Effective Date. Confidentiality obligations survive termination with respect to information disclosed during the term.
 
 ## 6. Return or Destruction
 

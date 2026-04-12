@@ -4,7 +4,7 @@ This Non-Disclosure Agreement (the "Agreement") is entered into as of {{EFFECTIV
 
 ## 1. Purpose
 
-The Receiving Party understands that the Disclosing Party has disclosed or may disclose information relating to {{PURPOSE}} (the "Confidential Information").
+The Receiving Party understands that the Disclosing Party has disclosed or may disclose information relating to {{CONFIDENTIAL_INFORMATION_PURPOSE}} (the "Confidential Information").
 
 ## 2. Confidentiality Obligations
 
@@ -26,7 +26,7 @@ Confidentiality obligations do not apply to information that:
 
 ## 4. Term
 
-This Agreement shall remain in effect for {{TERM_YEARS}} years from the Effective Date, unless earlier terminated by mutual written agreement.
+This Agreement shall remain in effect for {{AGREEMENT_TERM_YEARS}} years from the Effective Date, unless earlier terminated by mutual written agreement.
 
 ## 5. Return of Information
 
