@@ -1,6 +1,6 @@
 # Letter of Intent
 
-{{DATE}}
+{{LOI_DATE}}
 
 {{RECIPIENT_NAME}}  
 {{RECIPIENT_TITLE}}  
