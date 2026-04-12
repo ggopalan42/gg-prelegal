@@ -10,15 +10,29 @@ import {
   formatDate,
 } from '@/lib/nda-template';
 
+const PRINT_STYLES = `
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, serif; font-size: 13px; line-height: 1.7; color: #111; margin: 40px; }
+  h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
+  h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem; }
+  p { margin-bottom: 0.75rem; line-height: 1.7; }
+  a { color: #555; text-decoration: underline; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 40px 0; }
+  table { border-collapse: collapse; width: 100%; }
+  img { max-width: 100%; }
+  @media print {
+    body { margin: 0; }
+    @page { margin: 20mm; }
+  }
+`;
+
 interface Props {
   data: NDAFormData;
 }
 
 function SignatureBlock({ party, label }: { party: NDAFormData['party1']; label: string }) {
-  const hasSignature =
-    (party.signatureType === 'typed' && party.typedSignature) ||
-    (party.signatureType === 'drawn' && party.drawnSignature);
-
   return (
     <td style={{ width: '45%', padding: '0 16px', verticalAlign: 'top' }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>{label}</div>
@@ -61,31 +75,48 @@ function SignatureBlock({ party, label }: { party: NDAFormData['party1']; label:
 
 export default function DocumentPreview({ data }: Props) {
   const previewRef = useRef<HTMLDivElement>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  const [isGenerating, setIsGenerating] = useState(false);
+  const handleDownload = useCallback(() => {
+    if (!previewRef.current || isPrinting) return;
+    setIsPrinting(true);
 
-  const handleDownload = useCallback(async () => {
-    if (!previewRef.current || isGenerating) return;
-    setIsGenerating(true);
-    try {
-      const html2pdf = (await import('html2pdf.js')).default;
-      await html2pdf()
-        .set({
-          margin: [15, 15, 15, 15],
-          filename: 'Mutual-NDA.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        })
-        .from(previewRef.current)
-        .save();
-    } catch (err) {
-      console.error('PDF generation failed', err);
-      alert('PDF generation failed. Please try again.');
-    } finally {
-      setIsGenerating(false);
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      alert('Please allow pop-ups to download the PDF.');
+      setIsPrinting(false);
+      return;
     }
-  }, [isGenerating]);
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Mutual-NDA</title>
+    <style>${PRINT_STYLES}</style>
+  </head>
+  <body>${previewRef.current.innerHTML}</body>
+</html>`);
+    printWindow.document.close();
+
+    // Wait for images (drawn signatures) to load before printing
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+      setIsPrinting(false);
+    };
+
+    // Fallback if onload doesn't fire (no images)
+    setTimeout(() => {
+      if (!printWindow.closed) {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }
+      setIsPrinting(false);
+    }, 1000);
+  }, [isPrinting]);
 
   const { party1, party2, terms } = data;
   const standardTermsMarkdown = substituteStandardTerms(terms);
@@ -95,18 +126,18 @@ export default function DocumentPreview({ data }: Props) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Preview & Download</h2>
-          <p className="text-sm text-gray-500">Review your document before downloading.</p>
+          <p className="text-sm text-gray-500">Review your document, then click Download PDF to save.</p>
         </div>
         <button
           onClick={handleDownload}
-          disabled={isGenerating}
-          className="flex items-center gap-2 bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          disabled={isPrinting}
+          className="bg-gray-900 text-white px-5 py-2 rounded text-sm hover:bg-gray-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isGenerating ? 'Generating…' : 'Download PDF'}
+          {isPrinting ? 'Opening…' : 'Download PDF'}
         </button>
       </div>
 
-      {/* Document */}
+      {/* Document preview */}
       <div
         ref={previewRef}
         className="bg-white border border-gray-200 rounded p-10 text-sm leading-relaxed"
@@ -132,7 +163,7 @@ export default function DocumentPreview({ data }: Props) {
             over conflicts with the Standard Terms.
           </p>
 
-          {/* Fields */}
+          {/* Cover page fields */}
           {[
             {
               title: 'Purpose',
@@ -191,7 +222,6 @@ export default function DocumentPreview({ data }: Props) {
           </p>
         </div>
 
-        {/* Page break hint */}
         <hr style={{ margin: '40px 0', borderColor: '#ddd' }} />
 
         {/* Standard Terms */}
