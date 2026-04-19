@@ -2,17 +2,32 @@ import sqlite3
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-DB_PATH = Path("/data/prelegal.db")
+from models import ChatRequest, ChatResponse
+from chat import chat
+
+load_dotenv(Path(__file__).parent.parent / ".env")
+
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+def get_db_path() -> Path:
+    data_dir = Path("/data")
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+        return data_dir / "prelegal.db"
+    except OSError:
+        return Path(__file__).parent / "prelegal.db"
+
+
 def init_db():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +47,23 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    try:
+        result = chat(request.messages)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if STATIC_DIR.exists():
     app.mount("/_next/static", StaticFiles(directory=STATIC_DIR / "_next" / "static"), name="next-static")
