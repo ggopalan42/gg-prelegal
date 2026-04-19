@@ -8,7 +8,7 @@ The available documents are covered in the catalog.json file in the project root
 
 @catalog.json
 
-Product features (AI chat, document drafting) are not yet implemented — see the Implementation Status section at the end of this file.
+AI chat for the Mutual NDA is implemented. See the Implementation Status section at the end of this file for full details.
 
 ## Development process
 
@@ -73,8 +73,20 @@ Backend available at http://localhost:8000
 - `Dockerfile` — multi-stage build (Node → Python); single container on port 8000
 - `scripts/` — `start`/`stop` scripts for Mac, Linux, Windows (assume pre-built image)
 
+### GP-5 — AI chat for Mutual NDA (complete)
+- `backend/chat.py` — LiteLLM + Cerebras via OpenRouter, `ChatAIResponse` Structured Output extracts NDA fields per turn
+- `backend/models.py` — Pydantic models for `/api/chat` request/response
+- `backend/main.py` — `POST /api/chat` endpoint, CORS middleware, DB path falls back to local file when `/data` not writable
+- `frontend/components/ChatPanel.tsx` — freeform chat UI; AI initiates on mount; merges extracted fields into shared NDA state
+- `frontend/app/page.tsx` — split panel: chat (left) + live document preview (right); toggle to Form (wizard) mode
+- `frontend/next.config.ts` — rewrites `/api/*` → `http://localhost:8000/api/*` in `next dev` (ignored by static export)
+- `scripts/build-*.sh/.ps1` — added build scripts; start scripts now pass `--env-file .env` so `OPENROUTER_API_KEY` reaches the container
+
+### Development workflow
+- **Docker (recommended):** `scripts/build-mac.sh` then `scripts/start-mac.sh`
+- **Local dev:** run `cd backend && uv run uvicorn main:app --port 8000 --reload` and `cd frontend && npm run dev` in separate terminals
+
 ### Not yet implemented
-- AI chat for document drafting
 - Real authentication (sign up / sign in against the DB)
 - Support for document types beyond the Mutual NDA
 - Document persistence
