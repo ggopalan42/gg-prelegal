@@ -8,7 +8,7 @@ The available documents are covered in the catalog.json file in the project root
 
 @catalog.json
 
-The current implementation supports all 11 document types via AI chat with full user authentication and document persistence.
+Product features (AI chat, document drafting) are not yet implemented — see the Implementation Status section at the end of this file.
 
 ## Development process
 
@@ -26,8 +26,7 @@ There is an OPENROUTER_API_KEY in the .env file in the project root.
 
 ## Environment
 
-For this project, if you need a python virtual environment, please use the environment in "venv/ggpy314"  
-This is a Python 3.14 environment. If you need to install any packages into this environment, please either ask the user or use "pip install". This is *NOT* a uv project.
+The backend is a uv project at `backend/`. Use `uv add` to install packages and `uv run` to execute commands within it.
 
 
 ## Technical design
@@ -36,7 +35,7 @@ The entire project should be packaged into a *single* Docker container.
 The backend should be in backend/ and be a uv project, using FastAPI.  
 The frontend should be in frontend/  
 The database should use SQLLite and be created from scratch each time the Docker container is brought up, allowing for a users table with sign up and sign in.  
-Consider statically building the frontend and serving it via FastAPI, if that will work.  
+The frontend is statically exported (`next build` with `output: 'export'`) and served by FastAPI from `backend/static/`.  
 There should be scripts in scripts/ for:  
 ```bash
 # Mac
@@ -60,3 +59,22 @@ Backend available at http://localhost:8000
 - Dark Navy: `#032147` (headings)
 - Gray Text: `#888888`
 
+## Implementation Status
+
+### GP-3 — Mutual NDA Creator prototype (complete)
+- Next.js frontend with a 4-step wizard (parties, terms, signatures, preview) for the Mutual NDA
+- Client-side only; no backend
+
+### GP-4 — V1 technical foundation (complete)
+- `backend/` — FastAPI uv project; initializes SQLite `users` table on startup; serves static frontend
+- `frontend/next.config.ts` — `output: 'export'` for static build
+- `frontend/app/login/` — fake login page (name + email, non-empty required); session stored in `localStorage`
+- `frontend/app/page.tsx` — redirects to `/login` if no session found
+- `Dockerfile` — multi-stage build (Node → Python); single container on port 8000
+- `scripts/` — `start`/`stop` scripts for Mac, Linux, Windows (assume pre-built image)
+
+### Not yet implemented
+- AI chat for document drafting
+- Real authentication (sign up / sign in against the DB)
+- Support for document types beyond the Mutual NDA
+- Document persistence
