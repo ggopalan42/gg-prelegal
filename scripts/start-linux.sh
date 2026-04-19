@@ -4,6 +4,8 @@ set -e
 IMAGE="prelegal:latest"
 CONTAINER="prelegal"
 DATA_DIR="$HOME/.prelegal/data"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$(dirname "$SCRIPT_DIR")/.env"
 
 mkdir -p "$DATA_DIR"
 
@@ -20,6 +22,7 @@ docker run -d \
   --name "$CONTAINER" \
   -p 8000:8000 \
   -v "$DATA_DIR:/data" \
+  --env-file "$ENV_FILE" \
   "$IMAGE"
 
 echo "PreLegal started at http://localhost:8000"
