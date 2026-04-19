@@ -17,6 +17,8 @@ lib/
 lib64/
 !frontend/lib/
 .eggs/
+gg_notes.txt
+
 
 # Virtual environments
 .env
@@ -98,8 +100,8 @@ ehthumbs.db
 *.sqlite3
 *.db
 
-# Docker
-.dockerignore
+# Docker build artifacts
+
 
 # Git worktrees
 .worktrees/

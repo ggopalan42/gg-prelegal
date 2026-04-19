@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { NDAFormData, defaultParty, defaultTerms } from '@/lib/types';
 import Step1Parties from '@/components/steps/Step1Parties';
 import Step2Terms from '@/components/steps/Step2Terms';
@@ -15,6 +16,8 @@ const STEPS = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+  const [ready, setReady] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<NDAFormData>({
     party1: defaultParty(),
@@ -22,8 +25,18 @@ export default function Home() {
     terms: defaultTerms(),
   });
 
+  useEffect(() => {
+    if (!localStorage.getItem('prelegal_user')) {
+      router.replace('/login');
+    } else {
+      setReady(true);
+    }
+  }, [router]);
+
   const isFirst = step === 1;
   const isLast = step === STEPS.length;
+
+  if (!ready) return null;
 
   return (
     <div className="min-h-screen bg-gray-50">
