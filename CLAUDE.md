@@ -77,10 +77,23 @@ Backend available at http://localhost:8000
 - `backend/chat.py` — LiteLLM + Cerebras via OpenRouter, `ChatAIResponse` Structured Output extracts NDA fields per turn
 - `backend/models.py` — Pydantic models for `/api/chat` request/response
 - `backend/main.py` — `POST /api/chat` endpoint, CORS middleware, DB path falls back to local file when `/data` not writable
+- `backend/chat.py` — LiteLLM + Cerebras via OpenRouter, `ChatAIResponse` Structured Output extracts NDA fields per turn
+- `backend/models.py` — Pydantic models for `/api/chat` request/response
+- `backend/main.py` — `POST /api/chat` endpoint, CORS middleware, DB path falls back to local file when `/data` not writable
 - `frontend/components/ChatPanel.tsx` — freeform chat UI; AI initiates on mount; merges extracted fields into shared NDA state
 - `frontend/app/page.tsx` — split panel: chat (left) + live document preview (right); toggle to Form (wizard) mode
 - `frontend/next.config.ts` — rewrites `/api/*` → `http://localhost:8000/api/*` in `next dev` (ignored by static export)
 - `scripts/build-*.sh/.ps1` — added build scripts; start scripts now pass `--env-file .env` so `OPENROUTER_API_KEY` reaches the container
+
+### GP-6 — Expand to all supported legal document types (complete)
+- `backend/models.py` — generic `FieldEntry` / `ChatAIResponse` with `fields: list[FieldEntry]` and `doc_type`
+- `backend/chat.py` — dynamic system prompt per doc type built from catalog + template field extraction; selection-mode prompt lists all 12 types with short codes; AI suggests closest if unsupported type requested
+- `backend/main.py` — `GET /api/catalog` and `GET /api/template/{filename}` (path-traversal protected)
+- `frontend/lib/types.ts` — generic `DocumentFormData { docType, fields, signatures }`
+- `frontend/lib/doc-schemas.ts` — 12 doc schemas: short codes, party fields, key/order terms
+- `frontend/components/ChatPanel.tsx` — sends `doc_type`; uses functional updater to avoid stale-closure races
+- `frontend/components/DocumentPreview.tsx` — fetches template from backend, substitutes fields, renders cover page + signature blocks + standard terms for any doc type
+- `frontend/components/DocForm.tsx` — generic form (key terms + signature pads) for all 12 doc types
 
 ### Development workflow
 - **Docker (recommended):** `scripts/build-mac.sh` then `scripts/start-mac.sh`
@@ -88,5 +101,4 @@ Backend available at http://localhost:8000
 
 ### Not yet implemented
 - Real authentication (sign up / sign in against the DB)
-- Support for document types beyond the Mutual NDA
 - Document persistence
