@@ -9,38 +9,23 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[Message]
+    doc_type: Optional[str] = None
 
 
-class PartyFields(BaseModel):
-    printName: Optional[str] = None
-    title: Optional[str] = None
-    company: Optional[str] = None
-    noticeAddress: Optional[str] = None
-    date: Optional[str] = None
-
-
-class TermsFields(BaseModel):
-    purpose: Optional[str] = None
-    effectiveDate: Optional[str] = None
-    mndaTermType: Optional[str] = None
-    mndaTermYears: Optional[str] = None
-    confidentialityType: Optional[str] = None
-    confidentialityYears: Optional[str] = None
-    governingLaw: Optional[str] = None
-    jurisdiction: Optional[str] = None
+class FieldEntry(BaseModel):
+    key: str
+    value: str
 
 
 class ChatAIResponse(BaseModel):
     reply: str
-    party1: Optional[PartyFields] = None
-    party2: Optional[PartyFields] = None
-    terms: Optional[TermsFields] = None
+    fields: list[FieldEntry] = []
+    doc_type: Optional[str] = None
     complete: bool = False
 
 
 class ChatResponse(BaseModel):
     reply: str
-    party1: Optional[PartyFields] = None
-    party2: Optional[PartyFields] = None
-    terms: Optional[TermsFields] = None
+    fields: list[FieldEntry] = []
+    doc_type: Optional[str] = None
     complete: bool = False

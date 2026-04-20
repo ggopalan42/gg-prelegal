@@ -8,8 +8,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Mutual NDA Creator",
-  description: "Create a Mutual Non-Disclosure Agreement",
+  title: "PreLegal — Legal Document Creator",
+  description: "Create professional legal agreements with AI assistance",
 };
 
 export default function RootLayout({

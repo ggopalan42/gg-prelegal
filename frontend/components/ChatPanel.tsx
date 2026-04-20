@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
-import { NDAFormData } from '@/lib/types';
+import { DocumentFormData } from '@/lib/types';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -10,15 +10,14 @@ interface Message {
 
 interface ChatApiResponse {
   reply: string;
-  party1?: Partial<NDAFormData['party1']>;
-  party2?: Partial<NDAFormData['party2']>;
-  terms?: Partial<NDAFormData['terms']>;
+  fields: { key: string; value: string }[];
+  doc_type: string | null;
   complete: boolean;
 }
 
 interface Props {
-  formData: NDAFormData;
-  onChange: (data: NDAFormData) => void;
+  formData: DocumentFormData;
+  onChange: (updater: DocumentFormData | ((prev: DocumentFormData) => DocumentFormData)) => void;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -36,34 +35,35 @@ export default function ChatPanel({ formData, onChange }: Props) {
 
   // AI initiates on mount
   useEffect(() => {
-    sendToApi([]);
+    sendToApi([], formData.docType);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function sendToApi(history: Message[]) {
+  async function sendToApi(history: Message[], docType: string | null) {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, doc_type: docType }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data: ChatApiResponse = await res.json();
 
       setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
 
-      // Merge updated fields into formData
-      if (data.party1 || data.party2 || data.terms) {
-        onChange({
-          party1: { ...formData.party1, ...(data.party1 ?? {}) },
-          party2: { ...formData.party2, ...(data.party2 ?? {}) },
-          terms: { ...formData.terms, ...(data.terms ?? {}) },
-        });
-      }
+      // Merge extracted fields and doc_type into formData via functional updater
+      // to avoid stale closure clobbering concurrent form edits
+      onChange((prev) => {
+        const updatedFields = { ...prev.fields };
+        for (const { key, value } of data.fields ?? []) {
+          if (key && value) updatedFields[key] = value;
+        }
+        return { ...prev, docType: data.doc_type ?? prev.docType, fields: updatedFields };
+      });
 
       if (data.complete) setComplete(true);
-    } catch (e) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' },
@@ -81,7 +81,7 @@ export default function ChatPanel({ formData, onChange }: Props) {
     const userMsg: Message = { role: 'user', content: text };
     const updated = [...messages, userMsg];
     setMessages(updated);
-    await sendToApi(updated);
+    await sendToApi(updated, formData.docType);
   }
 
   return (
