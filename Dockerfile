@@ -16,6 +16,8 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY backend/ ./
+COPY catalog.json ./catalog.json
+COPY templates/ ./templates/
 COPY --from=frontend-builder /app/frontend/out ./static
 
 VOLUME ["/data"]

@@ -1,14 +1,11 @@
 'use client';
 
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect, Fragment } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { NDAFormData } from '@/lib/types';
-import {
-  substituteStandardTerms,
-  buildMndaTermText,
-  buildConfidentialityTermText,
-  formatDate,
-} from '@/lib/nda-template';
+import { DocumentFormData } from '@/lib/types';
+import { getSchema, allFields, DocSchema } from '@/lib/doc-schemas';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const PRINT_STYLES = `
   * { box-sizing: border-box; }
@@ -29,38 +26,82 @@ const PRINT_STYLES = `
 `;
 
 interface Props {
-  data: NDAFormData;
+  data: DocumentFormData;
 }
 
-function SignatureBlock({ party, label }: { party: NDAFormData['party1']; label: string }) {
+function formatDate(val: string): string {
+  if (!val) return '—';
+  const d = new Date(val + 'T00:00:00');
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function substituteFields(markdown: string, fields: Record<string, string>): string {
+  let result = markdown;
+  for (const [key, value] of Object.entries(fields)) {
+    if (!value) continue;
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Replace all span placeholder variants for this key (coverpage_link, keyterms_link, etc.)
+    const regex = new RegExp(`<span class="[a-z_]+_link">${escaped}</span>`, 'g');
+    const display = key.toLowerCase().includes('date') ? formatDate(value) : value;
+    result = result.replace(regex, `**${display.replace(/\$/g, '$$$$')}**`);
+  }
+  return result;
+}
+
+function FieldRow({ label, value }: { label: string; value: string }) {
+  const isDate = label.toLowerCase().includes('date');
+  const display = value ? (isDate ? formatDate(value) : value) : '—';
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{display}</div>
+    </div>
+  );
+}
+
+function SignatureBlock({
+  partyName,
+  fields,
+  signatures,
+}: {
+  partyName: string;
+  fields: Record<string, string>;
+  signatures: DocumentFormData['signatures'];
+}) {
+  const sig = signatures[partyName];
+  const rows: [string, string][] = [
+    ['Print Name', fields[`${partyName} Name`] || ''],
+    ['Title', fields[`${partyName} Title`] || ''],
+    ['Company', fields[partyName] || ''],
+    ['Notice Address', fields[`${partyName} Address`] || ''],
+    ['Date', fields[`${partyName} Date`] ? formatDate(fields[`${partyName} Date`]) : ''],
+  ];
+
   return (
     <td style={{ width: '45%', padding: '0 16px', verticalAlign: 'top' }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>{partyName}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <tbody>
           <tr>
-            <td style={{ paddingBottom: 8, borderBottom: '1px solid #ccc', width: 100, color: '#555' }}>Signature</td>
+            <td style={{ paddingBottom: 8, borderBottom: '1px solid #ccc', width: 110, color: '#555' }}>
+              Signature
+            </td>
             <td style={{ paddingBottom: 8, borderBottom: '1px solid #ccc', paddingLeft: 12 }}>
-              {party.signatureType === 'typed' && party.typedSignature ? (
-                <span style={{ fontFamily: 'cursive', fontSize: '1.15rem' }}>{party.typedSignature}</span>
-              ) : party.signatureType === 'drawn' && party.drawnSignature ? (
+              {sig?.signatureType === 'typed' && sig.typedSignature ? (
+                <span style={{ fontFamily: 'cursive', fontSize: '1.15rem' }}>{sig.typedSignature}</span>
+              ) : sig?.signatureType === 'drawn' && sig.drawnSignature ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={party.drawnSignature} alt="signature" style={{ height: 48, maxWidth: 200 }} />
+                <img src={sig.drawnSignature} alt="signature" style={{ height: 48, maxWidth: 200 }} />
               ) : (
                 <span style={{ color: '#aaa' }}>—</span>
               )}
             </td>
           </tr>
-          {[
-            ['Print Name', party.printName],
-            ['Title', party.title],
-            ['Company', party.company],
-            ['Notice Address', party.noticeAddress],
-            ['Date', formatDate(party.date)],
-          ].map(([field, value]) => (
-            <tr key={field}>
+          {rows.map(([label, value]) => (
+            <tr key={label}>
               <td style={{ paddingTop: 6, paddingBottom: 6, borderBottom: '1px solid #eee', color: '#555', verticalAlign: 'top' }}>
-                {field}
+                {label}
               </td>
               <td style={{ paddingTop: 6, paddingBottom: 6, borderBottom: '1px solid #eee', paddingLeft: 12, verticalAlign: 'top' }}>
                 {value || <span style={{ color: '#aaa' }}>—</span>}
@@ -74,40 +115,47 @@ function SignatureBlock({ party, label }: { party: NDAFormData['party1']; label:
 }
 
 export default function DocumentPreview({ data }: Props) {
+  const { docType, fields, signatures } = data;
   const previewRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [templateMd, setTemplateMd] = useState<string | null>(null);
+
+  const schema: DocSchema | undefined = docType ? getSchema(docType) : undefined;
+
+  // Fetch template markdown when doc type changes
+  useEffect(() => {
+    if (!schema) { setTemplateMd(null); return; }
+    fetch(`${API_BASE}/api/template/${schema.filename}`)
+      .then((r) => r.text())
+      .then(setTemplateMd)
+      .catch(() => setTemplateMd(null));
+  }, [schema?.filename]);
 
   const handleDownload = useCallback(() => {
     if (!previewRef.current || isPrinting) return;
     setIsPrinting(true);
-
     const printWindow = window.open('', '_blank', 'width=900,height=700');
     if (!printWindow) {
       alert('Please allow pop-ups to download the PDF.');
       setIsPrinting(false);
       return;
     }
-
     printWindow.document.write(`<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Mutual-NDA</title>
+    <title>${schema?.name ?? 'Document'}</title>
     <style>${PRINT_STYLES}</style>
   </head>
   <body>${previewRef.current.innerHTML}</body>
 </html>`);
     printWindow.document.close();
-
-    // Wait for images (drawn signatures) to load before printing
     printWindow.onload = () => {
       printWindow.focus();
       printWindow.print();
       printWindow.close();
       setIsPrinting(false);
     };
-
-    // Fallback if onload doesn't fire (no images)
     setTimeout(() => {
       if (!printWindow.closed) {
         printWindow.focus();
@@ -116,16 +164,30 @@ export default function DocumentPreview({ data }: Props) {
       }
       setIsPrinting(false);
     }, 1000);
-  }, [isPrinting]);
+  }, [isPrinting, schema]);
 
-  const { party1, party2, terms } = data;
-  const standardTermsMarkdown = substituteStandardTerms(terms);
+  if (!schema) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <div style={{ color: '#032147' }} className="text-lg font-semibold mb-2">
+          No document selected
+        </div>
+        <p className="text-sm" style={{ color: '#888888' }}>
+          Use the AI chat to select a document type and fill in the details.
+          The preview will appear here once a document type is chosen.
+        </p>
+      </div>
+    );
+  }
+
+  const renderedMd = templateMd ? substituteFields(templateMd, fields) : null;
+  const orderedKeyTerms = schema.keyTerms.filter((f) => !schema.parties.includes(f));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Preview & Download</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Preview &amp; Download</h2>
           <p className="text-sm text-gray-500">Review your document, then click Download PDF to save.</p>
         </div>
         <button
@@ -137,7 +199,6 @@ export default function DocumentPreview({ data }: Props) {
         </button>
       </div>
 
-      {/* Document preview */}
       <div
         ref={previewRef}
         className="bg-white border border-gray-200 rounded p-10 text-sm leading-relaxed"
@@ -146,88 +207,62 @@ export default function DocumentPreview({ data }: Props) {
         {/* Cover Page */}
         <div style={{ marginBottom: 40 }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center', marginBottom: 6 }}>
-            Mutual Non-Disclosure Agreement
+            {schema.name}
           </h1>
           <p style={{ textAlign: 'center', fontSize: 12, color: '#555', marginBottom: 32 }}>
             Cover Page
           </p>
 
-          <p style={{ marginBottom: 20, fontSize: 13 }}>
-            This Mutual Non-Disclosure Agreement (the &ldquo;MNDA&rdquo;) consists of: (1) this Cover Page
-            (&ldquo;<strong>Cover Page</strong>&rdquo;) and (2) the Common Paper Mutual NDA Standard Terms Version 1.0
-            (&ldquo;<strong>Standard Terms</strong>&rdquo;) identical to those posted at{' '}
-            <a href="https://commonpaper.com/standards/mutual-nda/1.0" style={{ color: '#555' }}>
-              commonpaper.com/standards/mutual-nda/1.0
-            </a>
-            . Any modifications of the Standard Terms should be made on the Cover Page, which will control
-            over conflicts with the Standard Terms.
-          </p>
+          {/* Key terms */}
+          {orderedKeyTerms.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              {orderedKeyTerms.map((f) => (
+                <FieldRow key={f} label={f} value={fields[f] ?? ''} />
+              ))}
+            </div>
+          )}
 
-          {/* Cover page fields */}
-          {[
-            {
-              title: 'Purpose',
-              subtitle: 'How Confidential Information may be used',
-              value: terms.purpose,
-            },
-            {
-              title: 'Effective Date',
-              value: formatDate(terms.effectiveDate),
-            },
-            {
-              title: 'MNDA Term',
-              subtitle: 'The length of this MNDA',
-              value: buildMndaTermText(terms),
-            },
-            {
-              title: 'Term of Confidentiality',
-              subtitle: 'How long Confidential Information is protected',
-              value: buildConfidentialityTermText(terms),
-            },
-            {
-              title: 'Governing Law & Jurisdiction',
-              value: `Governing Law: ${terms.governingLaw || '—'}\nJurisdiction: ${terms.jurisdiction || '—'}`,
-            },
-          ].map(({ title, subtitle, value }) => (
-            <div key={title} style={{ marginBottom: 18 }}>
-              <div style={{ fontWeight: 700, marginBottom: 2 }}>{title}</div>
-              {subtitle && <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>{subtitle}</div>}
-              <div style={{ whiteSpace: 'pre-line' }}>{value || '—'}</div>
+          {/* Extra term sections */}
+          {schema.extraTerms?.map(({ label, fields: termFields }) => (
+            <div key={label} style={{ marginBottom: 24 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, borderBottom: '1px solid #eee', paddingBottom: 4 }}>
+                {label}
+              </div>
+              {termFields.map((f) => (
+                <FieldRow key={f} label={f} value={fields[f] ?? ''} />
+              ))}
             </div>
           ))}
 
-          <div style={{ marginBottom: 18 }}>
-            <div style={{ fontWeight: 700, marginBottom: 2 }}>MNDA Modifications</div>
-            <div style={{ color: '#777' }}>None.</div>
-          </div>
-
-          <p style={{ marginBottom: 16, fontStyle: 'italic', fontSize: 13 }}>
-            By signing this Cover Page, each party agrees to enter into this MNDA as of the Effective Date.
-          </p>
-
-          {/* Signature table */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 20 }}>
-            <tbody>
-              <tr>
-                <SignatureBlock party={party1} label="Party 1" />
-                <td style={{ width: 10 }} />
-                <SignatureBlock party={party2} label="Party 2" />
-              </tr>
-            </tbody>
-          </table>
-
-          <p style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>
-            Common Paper Mutual Non-Disclosure Agreement (Version 1.0) free to use under{' '}
-            <a href="https://creativecommons.org/licenses/by/4.0/" style={{ color: '#888' }}>CC BY 4.0</a>.
-          </p>
+          {/* Signature blocks */}
+          {schema.parties.length > 0 && (
+            <div style={{ marginTop: 32 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Signatures</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr>
+                    {schema.parties.map((party, i) => (
+                      <Fragment key={party}>
+                        <SignatureBlock partyName={party} fields={fields} signatures={signatures} />
+                        {i < schema.parties.length - 1 && <td style={{ width: 10 }} />}
+                      </Fragment>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-
-        <hr style={{ margin: '40px 0', borderColor: '#ddd' }} />
 
         {/* Standard Terms */}
-        <div className="nda-terms" style={{ fontFamily: 'Georgia, serif' }}>
-          <ReactMarkdown>{standardTermsMarkdown}</ReactMarkdown>
-        </div>
+        {renderedMd && (
+          <>
+            <hr style={{ margin: '40px 0', borderColor: '#ddd' }} />
+            <div style={{ fontFamily: 'Georgia, serif' }}>
+              <ReactMarkdown>{renderedMd}</ReactMarkdown>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
