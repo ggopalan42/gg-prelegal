@@ -9,7 +9,7 @@ from models import Message, ChatAIResponse
 MODEL = "openrouter/openai/gpt-oss-120b"
 EXTRA_BODY = {"provider": {"order": ["cerebras"]}}
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent
 
 with open(BASE_DIR / "catalog.json") as f:
     CATALOG = json.load(f)

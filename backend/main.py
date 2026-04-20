@@ -13,8 +13,8 @@ from chat import chat
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-BASE_DIR = Path(__file__).parent.parent
-STATIC_DIR = Path(__file__).parent / "static"
+BASE_DIR = Path(__file__).parent
+STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 
